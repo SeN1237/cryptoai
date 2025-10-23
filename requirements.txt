@@ -10,3 +10,5 @@ plotly
 nltk
 streamlit
 matplotlib
+yfinance
+lightgbm
