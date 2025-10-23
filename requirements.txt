@@ -1,3 +1,4 @@
+xgboost
 fastapi
 uvicorn
 pandas
