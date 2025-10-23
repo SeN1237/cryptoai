@@ -375,6 +375,3 @@ st.markdown("---")
 st.markdown(f"_Ostatnia aktualizacja: **{time.strftime('%H:%M:%S', time.localtime())}**_")
 st.info("System automatycznie odświeży dane i ponowi skanowanie za około 60 sekund. Zapewnia to zawsze świeże prognozy.")
 
-refresh_interval_seconds = 60
-time.sleep(refresh_interval_seconds) 
-st.rerun()
