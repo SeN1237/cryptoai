@@ -3,6 +3,14 @@ import requests
 import time
 from typing import List, Dict, Any, Union
 from datetime import timedelta # Używamy do obliczenia daty prognozy
+import nltk
+
+# Automatyczne pobranie leksykonu VADER, jeśli go brakuje
+try:
+    nltk.data.find('sentiment/vader_lexicon.zip')
+except LookupError:
+    nltk.download('vader_lexicon')
+
 
 # Import dla Scikit-learn
 from sklearn.linear_model import LinearRegression 
