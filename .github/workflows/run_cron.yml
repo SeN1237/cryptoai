@@ -8,11 +8,7 @@ on:
 
 jobs:
   run-simulations:
-    # 🚀 KRYTYCZNA ZMIANA: Użycie gotowego obrazu Docker z zainstalowanymi pakietami ML
     runs-on: ubuntu-latest
-    container: 
-      image: continuumio/miniconda3:latest # Gotowy obraz z Conda/Miniconda (stabilne ML)
-      
     steps:
       # 1. Checkout kodu
       - name: Checkout Code
@@ -21,17 +17,39 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0 
 
-      # 2. Instalacja brakujących zależności (tylko te, których nie ma w Conda/Miniconda)
-      - name: Install Remaining Dependencies
-        # Używamy PATH do instalatora Pythona wewnątrz kontenera (/opt/conda/bin/python)
-        run: |
-          /opt/conda/bin/pip install -r requirements.txt --upgrade --no-cache-dir
+      # 2. Setup Python 3.10
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
           
-      # 3. Pobranie danych NLTK (dla sentymentu VADER)
-      - name: Download NLTK data
-        run: /opt/conda/bin/python -c "import nltk; nltk.download('vader_lexicon')"
-        
-      # 4. Uruchomienie głównego skryptu symulacji
+      # 3. Instalacja kluczowych zależności systemowych
+      - name: Install System Dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+
+      # 4. 🚀 KROK DIAGNOSTYCZNY: Tworzenie VENV i Sprawdzenie Struktury
+      - name: CREATE VENV AND VERIFY
+        id: venv_test
+        run: |
+          # Tworzymy VENV
+          python -m venv venv_test_xgboost
+          echo "### STWORZONO VENV ###"
+          ls -F venv_test_xgboost/bin/
+          
+          # Ustawiamy PATH, co jest niezbędne do poprawnej aktywacji
+          echo "PATH=$PWD/venv_test_xgboost/bin:$PATH" >> $GITHUB_ENV
+          
+      # 5. Instalacja i Test (Bez użycia "source activate")
+      - name: INSTALL XGBoost and NLTK into VENV
+        # Używamy PATH ustawionego w poprzednim kroku, aby wywołać pip i python
+        run: |
+          pip install -r requirements.txt --upgrade --no-cache-dir
+          
+          echo "### WERYFIKACJA INSTALACJI ###"
+          python -c "import xgboost; print('XGBoost jest widoczny w Python PATH!')"
+          python -c "import nltk; nltk.download('vader_lexicon')"
+
+      # 6. Uruchomienie głównego skryptu symulacji
       - name: Run Multi-Simulations and Aggregate
-        # Używamy interpretera Pythona wewnątrz kontenera
-        run: /opt/conda/bin/python run_multiple_simulations_crypto.py
+        # Teraz uruchamiamy skrypt, który powinien widzieć pakiety
+        run: python run_multiple_simulations_crypto.py
