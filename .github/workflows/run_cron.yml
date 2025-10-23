@@ -26,11 +26,11 @@ jobs:
       # 3. Instalacja kluczowych zależności systemowych
       - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential
-        
+
       # 4. Instalacja zależności Python
       - name: Install Python Dependencies
         run: pip install -r requirements.txt --upgrade --no-cache-dir --user
-        
+
       # 5. Konfiguracja i Zapisanie Ścieżki Pythona
       - name: Export Python Path
         id: export_path
@@ -43,5 +43,3 @@ jobs:
       - name: Run Multi-Simulations and Aggregate
         # Używamy zmiennej PYTHON_BIN do jawnego wywołania interpretera
         run: ${{ env.PYTHON_BIN }} run_multiple_simulations_crypto.py
-
-      # 7. Push Results (Logika pominięta dla zwięzłości, musi być w run_multiple_simulations_crypto.py)
