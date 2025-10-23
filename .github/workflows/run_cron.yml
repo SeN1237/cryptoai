@@ -23,25 +23,30 @@ jobs:
         with:
           python-version: '3.10'
           
-      # 3. Instalacja kluczowych zależności systemowych (Niezbędne dla XGBoost)
-      - name: Install System Dependencies for XGBoost
-        # Budowanie narzędzi jest kluczowe dla kompilacji
+      # 3. Instalacja kluczowych zależności systemowych
+      - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
-      # 4. Instalacja zależności Python (KRYTYCZNY KROK - CZYSTE GLOBALNE ŚRODOWISKO)
-      - name: Install Python Dependencies
-        # Używamy --upgrade --no-cache-dir dla maksymalnej niezawodności
-        run: pip install -r requirements.txt --upgrade --no-cache-dir
+      # 4. 🚀 KRYTYCZNY KROK: Instalacja Python (do katalogu użytkownika)
+      - name: Install Python Dependencies (User Site)
+        # Instalujemy do katalogu lokalnego użytkownika i dodajemy do PYTHONPATH
+        run: pip install -r requirements.txt --upgrade --no-cache-dir --user
         
-      # 5. Pobranie danych NLTK (dla sentymentu VADER)
+      # 5. Ustawienie Zmiennej Środowiskowej PYTHONPATH
+      - name: Set PYTHONPATH for XGBoost Visibility
+        run: |
+          # Obliczanie ścieżki instalacji pakietów lokalnych
+          USER_SITE=$(python -m site --user-site)
+          echo "PYTHONPATH=$USER_SITE" >> $GITHUB_ENV
+
+      # 6. Pobranie danych NLTK (dla sentymentu VADER)
       - name: Download NLTK data
         run: python -c "import nltk; nltk.download('vader_lexicon')"
         
-      # 6. DIAGNOSTYKA: Potwierdzenie instalacji (jeśli ten krok się uda, problem rozwiązany)
+      # 7. DIAGNOSTYKA: Potwierdzenie instalacji
       - name: Verify XGBoost Installation
-        run: python -c "import xgboost; print('XGBoost is installed successfully.')"
+        run: python -c "import xgboost; print('XGBoost is installed and visible.')"
         
-      # 7. Uruchomienie głównego skryptu symulacji
+      # 8. Uruchomienie głównego skryptu symulacji
       - name: Run Multi-Simulations and Aggregate
-        # Używamy prostego wywołania 'python', bo pakiety są w globalnej ścieżce
         run: python run_multiple_simulations_crypto.py
