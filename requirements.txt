@@ -8,3 +8,5 @@ pydantic
 numpy
 plotly
 nltk
+streamlit
+matplotlib
