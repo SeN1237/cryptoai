@@ -25,30 +25,33 @@ jobs:
           
       # 3. Instalacja kluczowych zależności systemowych
       - name: Install System Dependencies
-        # build-essential jest kluczowe dla kompilacji C/C++ (XGBoost)
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
-      # 4. 🚀 KRYTYCZNY KROK: Uruchomienie VENV i Instalacja Zależności
+      # 4. 🚀 KRYTYCZNY KROK: Uruchomienie VENV i Instalacja
       - name: Setup VENV and Install Dependencies
-        # 4a. Tworzymy VENV
-        run: python -m venv venv_xgboost
-        
-      # 4b. Instalujemy pakiety używając interpreter VENV
-      - name: Install Packages into VENV
-        # Używamy ścieżki do pip w VENV, aby mieć 100% pewności
         run: |
+          # 4a. Tworzymy VENV
+          python -m venv venv_xgboost
+          
+          # 4b. Instalujemy pakiety w VENV
           ./venv_xgboost/bin/pip install -r requirements.txt --upgrade --no-cache-dir
           ./venv_xgboost/bin/pip install xgboost
           
-      # 5. Pobranie danych NLTK (dla sentymentu VADER)
-      - name: Download NLTK data
-        run: ./venv_xgboost/bin/python -c "import nltk; nltk.download('vader_lexicon')"
-
-      # 6. DIAGNOSTYKA: Potwierdzenie instalacji
-      - name: Verify XGBoost Installation
-        run: ./venv_xgboost/bin/python -c "import xgboost; print('XGBoost is installed successfully.')"
-        
-      # 7. Uruchomienie głównego skryptu symulacji W ŚCIEŻCE VENV
-      - name: Run Multi-Simulations and Aggregate
-        # Używamy pełnej ścieżki do interpretera Pythona w VENV
-        run: ./venv_xgboost/bin/python run_multiple_simulations_crypto.py
+          # 4c. Pobieramy dane NLTK w VENV
+          ./venv_xgboost/bin/python -c "import nltk; nltk.download('vader_lexicon')"
+          
+      # 5. DIAGNOSTYKA i Uruchomienie Głównego Skryptu (SKONSOLIDOWANE)
+      - name: Verify and Run Script
+        # Używamy jednego bloku "run", który aktywuje VENV i uruchamia kod.
+        # Aktywacja VENV w GitHub Actions często wymaga specjalnej komendy, 
+        # ale użycie kropki (dot source) powinno działać niezawodnie w bash.
+        shell: bash 
+        run: |
+          # Aktywacja środowiska w aktualnej powłoce (shell session)
+          source venv_xgboost/bin/activate
+          
+          # Test
+          python -c "import xgboost; print('XGBoost is installed and found in VENV.')"
+          
+          # Uruchomienie skryptu
+          python run_multiple_simulations_crypto.py
