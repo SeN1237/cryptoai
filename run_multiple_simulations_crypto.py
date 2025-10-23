@@ -14,50 +14,50 @@ def git_push_results():
     """Wypycha zaktualizowany plik CSV do repozytorium GitHub, wymuszając operacje Git."""
     print("--- ROZPOCZĘTO OPERACJĘ ZAPISU GIT ---")
     
-    # 1. Konfiguracja Gita w środowisku GitHub Actions
+    # 1. Konfiguracja Gita
+    subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
+    subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"], check=True)
+    
+    # 2. DODATKOWY KROK: Musimy pobrać najnowszy stan repozytorium, aby uniknąć błędów 'non-fast-forward'
     try:
-        subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
-        subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"], check=True)
-        # Używamy tokenu do pulla i commitów
-        subprocess.run(["git", "pull"], check=True) # Najpierw pobieramy zmiany, by uniknąć konfliktów
-        print("✅ Git skonfigurowany i pobrano najnowsze zmiany.")
-    except Exception as e:
-        print(f"❌ BŁĄD GIT: Nie udało się skonfigurować lub pobrać zmian: {e}")
-        return
-
-    # 2. DODATKOWY DEBUG: Sprawdzenie, czy plik wynikowy istnieje
-    if not os.path.exists(AVG_FILE):
-        print(f"❌ BŁĄD KRYTYCZNY: Plik wynikowy {AVG_FILE} NIE ISTNIEJE po agregacji! Nie można zapisać.")
-        return
-
-    # 3. Dodanie pliku do stage'a
+        subprocess.run(["git", "pull", "--rebase"], check=True)
+        print("✅ Pomyślnie pobrano najnowsze zmiany.")
+    except subprocess.CalledProcessError:
+        print("Brak zmian do pobrania lub błąd 'pull'. Kontynuuję.")
+    
+    # 3. Dodanie plików (w tym folderu, jeśli nie jest jeszcze śledzony)
     try:
-        # Dodanie pliku do śledzenia przez Git
+        subprocess.run(["git", "add", RESULTS_DIR], check=True)
         subprocess.run(["git", "add", AVG_FILE], check=True)
-        print(f"✅ Dodano plik {AVG_FILE} do stage'a.")
+        print("✅ Dodano folder i plik do stage'a.")
     except Exception as e:
         print(f"❌ BŁĄD w 'git add': {e}")
         return
         
-    # 4. Wymuszony Commit
+    # 4. Sprawdzenie, czy są faktyczne zmiany do commita
+    status_output = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True).stdout
+
+    if not status_output:
+        print("ℹ️ Brak faktycznych zmian w pliku. Pomijam commit i push.")
+        return
+    
+    # 5. Commit
     try:
         commit_message = f"🤖 [CRON] Nowe wyniki z symulacji ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
-        
-        # Używamy --allow-empty, aby ominąć błąd "nothing to commit"
-        subprocess.run(["git", "commit", "-m", commit_message, "--allow-empty"], check=True) 
+        # Commit standardowy
+        subprocess.run(["git", "commit", "-m", commit_message], check=True) 
         print(f"✅ Commit wykonany.")
     except subprocess.CalledProcessError as e:
-        print(f"❌ BŁĄD GIT COMMIT: {e}")
-        return
+         print("ℹ️ Commit pominięty: brak zmian w pliku.")
+         return
 
-    # 5. Push
+    # 6. Push
     try:
-        # Push zmian do gałęzi 'main'
         subprocess.run(["git", "push"], check=True) 
-        print("✅ Pomyślnie zapisano wyniki na GitHub. Sprawdź repozytorium.")
+        print("✅ Pomyślnie zapisano wyniki na GitHub. SYSTEM JEST AKTYWNY.")
     except Exception as e:
         print(f"❌ BŁĄD GIT PUSH: {e}")
-        print("Prawdopodobnie błąd autoryzacji (Krok 2 - 'Read and write permissions').")
+        print("Prawdopodobnie błąd autoryzacji. MUSISZ SPRAWDZIĆ USTAWIENIA GITHUB (Read and write permissions).")
 
 
 def run_and_aggregate_simulations(num_simulations=NUM_SIMULATIONS):
