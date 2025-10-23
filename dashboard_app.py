@@ -164,7 +164,6 @@ analysis_results, full_ranking = run_auto_scan_and_analysis(limit_symbols_scan, 
 # --- TWORZENIE TABEL DANYCH (Z DODANYM DEBUGEM I OBSŁUGĄ BRAKU DANYCH) ---
 st.header("📊 Aktualny Skan Rynku (Interwał: " + interval + ")")
 
-# 🔹 Debug – ile wyników w ogóle zwrócono
 st.write("🧩 DEBUG: liczba elementów w analysis_results =", len(analysis_results))
 
 df_full_analysis = pd.DataFrame([
@@ -184,11 +183,11 @@ df_full_analysis = pd.DataFrame([
     for s, res in analysis_results.items()
 ])
 
-# 🔹 Jeśli brak danych, pokaż komunikat i zatrzymaj dalsze działanie
 if df_full_analysis.empty:
     st.error("❌ Brak danych do wyświetlenia — żadna analiza nie zwróciła wyników.")
     st.info("Spróbuj ponownie uruchomić skan (kliknij 'Uruchom Skan Rynku / Odśwież teraz 🔄').")
     st.stop()
+
 
 # --- KONTYNUACJA NORMALNEGO DZIAŁANIA ---
 df_top_score = df_full_analysis.sort_values(by='Score', ascending=False).head(top_score_n).reset_index(drop=True)
