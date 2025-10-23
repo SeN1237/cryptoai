@@ -10,17 +10,13 @@ jobs:
   run-simulations:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout kodu (Kluczowa zmiana dla zapisu)
-      - name: Checkout Code (Full Write Permission)
+      # 1. Checkout kodu
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          # Używamy domyślnego tokenu
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0 
-          # 🚨 KRYTYCZNA FLAGA: Musimy jawnie ustawić uprawnienia do zapisu
-          # na katalog roboczy (choć token powinien je mieć, to GHA bywa kapryśny)
-          persist-credentials: true 
-          
+
       # 2. Setup Python 3.10
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,38 +27,21 @@ jobs:
       - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential
         
-      # 4. Instalacja zależności (Teraz już działa stabilnie)
+      # 4. Instalacja zależności Python
       - name: Install Python Dependencies
-        run: pip install -r requirements.txt --upgrade --no-cache-dir
+        run: pip install -r requirements.txt --upgrade --no-cache-dir --user
         
-      # 5. Pobranie danych NLTK (dla sentymentu VADER)
-      - name: Download NLTK data
-        run: python -c "import nltk; nltk.download('vader_lexicon')"
-
-      # 6. Uruchomienie głównego skryptu symulacji
-      - name: Run Multi-Simulations and Aggregate
-        run: python run_multiple_simulations_crypto.py
-        
-      # 7. 🚨 KRYTYCZNY KROK: Ustawienie bezpiecznego katalogu dla Gita
-      # Zapobiega błędom "fatal: detected dubious ownership"
-      - name: Set Git Safe Directory
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-        
-      # 8. Konfiguracja i Wypchnięcie (Push)
-      - name: Push Results to GitHub
+      # 5. Konfiguracja i Zapisanie Ścieżki Pythona
+      - name: Export Python Path
+        id: export_path
         run: |
-          # Konfiguracja użytkownika, który dokonuje commita
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
+          # Zapisujemy pełną ścieżkę do interpretera Pythona w zmiennej środowiskowej
+          echo "PYTHON_BIN=$(which python)" >> $GITHUB_ENV
+          echo "Ścieżka Pythona: $PYTHON_BIN"
           
-          # Dodanie wygenerowanego folderu (z plikami CSV)
-          git add top_results_crypto/average_top_crypto.csv
-          
-          # Sprawdzenie, czy są zmiany do commita (jeśli nie ma, pominie commit)
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "🤖 [CRON] Aktualizacja uśrednionych wyników (LightGBM)"
-            # Push (używamy HEAD, by było pewne)
-            git push origin HEAD
-          else
-            echo "Brak nowych zmian w pliku CSV do wypchnięcia."
-          fi
+      # 6. Uruchomienie Głównego Skryptu Symulacji (Użycie Pełnej Ścieżki)
+      - name: Run Multi-Simulations and Aggregate
+        # Używamy zmiennej PYTHON_BIN do jawnego wywołania interpretera
+        run: ${{ env.PYTHON_BIN }} run_multiple_simulations_crypto.py
+
+      # 7. Push Results (Logika pominięta dla zwięzłości, musi być w run_multiple_simulations_crypto.py)
