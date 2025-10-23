@@ -23,28 +23,14 @@ jobs:
         with:
           python-version: '3.10'
           
-      # 3. Instalacja kluczowych zależności systemowych (Konieczne dla kompilacji C++)
-      - name: Install System Dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential
-
-      # 4. Instalacja XGBOOST OSOBNO (KRYTYCZNE)
-      # Wymuszamy instalację XGBoost w osobnym kroku, aby uniknąć problemów
-      - name: Install XGBoost Separately and Verify
-        # Używamy pip install -v, aby zobaczyć więcej informacji o procesie
-        run: pip install xgboost -v
-
-      # 5. Instalacja reszty zależności
-      - name: Install Remaining Dependencies
+      # 3. Instalacja zależności (Czysta instalacja LightGBM i reszty)
+      - name: Install Dependencies (LightGBM)
         run: pip install -r requirements.txt --upgrade --no-cache-dir
         
-      # 6. Pobranie danych NLTK (dla sentymentu VADER)
+      # 4. Pobranie danych NLTK (dla sentymentu VADER)
       - name: Download NLTK data
         run: python -c "import nltk; nltk.download('vader_lexicon')"
 
-      # 7. DIAGNOSTYKA: Potwierdzenie instalacji
-      - name: Verify XGBoost Installation
-        run: python -c "import xgboost; print('XGBoost jest zainstalowany i widoczny.')"
-        
-      # 8. Uruchomienie głównego skryptu symulacji
+      # 5. Uruchomienie głównego skryptu symulacji (Teraz z LightGBM)
       - name: Run Multi-Simulations and Aggregate
         run: python run_multiple_simulations_crypto.py
