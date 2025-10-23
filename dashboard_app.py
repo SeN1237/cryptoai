@@ -161,28 +161,55 @@ with st.sidebar:
 # Uruchomienie głównej funkcji analizy
 analysis_results, full_ranking = run_auto_scan_and_analysis(limit_symbols_scan, top_score_n, interval, add_delay) 
 
+# --- TWORZENIE TABEL DANYCH (Z DODANYM DEBUGEM I OBSŁUGĄ BRAKU DANYCH) ---
+st.header("📊 Aktualny Skan Rynku (Interwał: " + interval + ")")
 
-# --- TWORZENIE TABEL DANYCH ---
+# 🔹 Debug – ile wyników w ogóle zwrócono
+st.write("🧩 DEBUG: liczba elementów w analysis_results =", len(analysis_results))
+
 df_full_analysis = pd.DataFrame([
     {
         'Symbol': s.replace("USDT", ""), 
-        'Score': res['score'], 
-        'Sugestia': res['sugestion'], 
-        'ML Prognoza %': f"{res['forecast_ml_percent']:+.2f}%", 
-        'ML Cena Prog.': f"${res['forecast_ml_price_30day']:,.2f}" if res['forecast_ml_price_30day'] is not None else "N/A",
-        'RSI Akcja': res['analysis_rsi']['action'],
-        'Sentyment %': f"{res['forecast_sentiment_percent']:+.2f}%",
+        'Score': res.get('score', 0), 
+        'Sugestia': res.get('sugestion', 'Brak'), 
+        'ML Prognoza %': f"{res.get('forecast_ml_percent', 0):+.2f}%", 
+        'ML Cena Prog.': (
+            f"${res.get('forecast_ml_price_30day', 0):,.2f}"
+            if res.get('forecast_ml_price_30day') is not None else "N/A"
+        ),
+        'RSI Akcja': res.get('analysis_rsi', {}).get('action', 'Brak'),
+        'Sentyment %': f"{res.get('forecast_sentiment_percent', 0):+.2f}%",
         'ID': s
     } 
     for s, res in analysis_results.items()
 ])
 
+# 🔹 Jeśli brak danych, pokaż komunikat i zatrzymaj dalsze działanie
+if df_full_analysis.empty:
+    st.error("❌ Brak danych do wyświetlenia — żadna analiza nie zwróciła wyników.")
+    st.info("Spróbuj ponownie uruchomić skan (kliknij 'Uruchom Skan Rynku / Odśwież teraz 🔄').")
+    st.stop()
+
+# --- KONTYNUACJA NORMALNEGO DZIAŁANIA ---
 df_top_score = df_full_analysis.sort_values(by='Score', ascending=False).head(top_score_n).reset_index(drop=True)
 df_top_score.index = df_top_score.index + 1
 popular_symbols_short = [s.replace('USDT', '') for s in MUST_SCAN_SYMBOLS]
 df_popular = df_full_analysis[df_full_analysis['Symbol'].isin(popular_symbols_short)].sort_values(by='Score', ascending=False).reset_index(drop=True)
 df_popular.index = df_popular.index + 1
 chart_symbols = df_full_analysis['Symbol'].tolist()
+
+col_zyski, col_popularne = st.columns([1, 1])
+
+with col_zyski:
+    with st.container():
+        st.markdown(f"**🚀 Top {top_score_n} Zyskowne Okazje** | _Prognoza 30 Dni_")
+        st.dataframe(df_top_score[['Symbol', 'Score', 'ML Prognoza %', 'RSI Akcja']], use_container_width=True, hide_index=True)
+    
+with col_popularne:
+    with st.container():
+        st.markdown(f"**⭐ Popularne Aktywa** | _Stała Lista wg Potencjału 30 Dni_")
+        st.dataframe(df_popular[['Symbol', 'Score', 'ML Prognoza %', 'RSI Akcja']], use_container_width=True, hide_index=True)
+
 
 
 # --- UKŁAD GŁÓWNY: DWIE KOLUMNY Z TABELAMI ---
