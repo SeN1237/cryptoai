@@ -7,6 +7,5 @@ pydantic
 numpy
 plotly
 nltk
-xgboost
 streamlit
 matplotlib
