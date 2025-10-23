@@ -2,11 +2,9 @@
 name: 'Cykl Symulacji AI (Cron)'
 
 on:
-  # Uruchamia workflow manualnie (opcjonalnie)
   workflow_dispatch:
-  # Uruchamia workflow co 6 godzin
   schedule:
-    - cron: '0 */6 * * *' # Co 6 godzin (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *' 
 
 jobs:
   run-simulations:
@@ -15,10 +13,9 @@ jobs:
       # 1. Checkout kodu
       - name: Checkout Code
         uses: actions/checkout@v4
-        # Ważne: Musimy użyć klucza do zapisu (tokenu)
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} # Domyślny token, który ma uprawnienia do zapisu w repozytorium
-          fetch-depth: 0 # Wymagane, aby pobrać całą historię Git i móc pushować
+          token: ${{ secrets.GITHUB_TOKEN }} 
+          fetch-depth: 0 
 
       # 2. Setup Python 3.10
       - name: Set up Python
@@ -26,23 +23,16 @@ jobs:
         with:
           python-version: '3.10'
           
-      # 3. Cache instalacji
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      # 4. Instalacja zależności
+      # 3. Instalacja zależności (OBOWIĄZKOWO PRZED SKRYPTEM!)
+      # Upewniamy się, że wszystkie pakiety są zainstalowane
       - name: Install dependencies
         run: pip install -r requirements.txt
         
-      # 5. Pobranie danych NLTK (dla sentymentu VADER)
+      # 4. Pobranie danych NLTK (dla sentymentu VADER)
+      # Jest to krytyczny krok dla Twojej analizy sentymentu
       - name: Download NLTK data
         run: python -c "import nltk; nltk.download('vader_lexicon')"
 
-      # 6. Uruchomienie głównego skryptu symulacji i agregacji
+      # 5. Uruchomienie głównego skryptu symulacji
       - name: Run Multi-Simulations and Aggregate
         run: python run_multiple_simulations_crypto.py
