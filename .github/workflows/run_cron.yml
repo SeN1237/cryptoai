@@ -8,6 +8,7 @@ on:
 
 jobs:
   run-simulations:
+    # Używamy najnowszej wersji Ubuntu
     runs-on: ubuntu-latest
     steps:
       # 1. Checkout kodu
@@ -23,25 +24,30 @@ jobs:
         with:
           python-version: '3.10'
           
-      # 3. Instalacja kluczowych zależności systemowych (wymaganych przez XGBoost)
-      # Te biblioteki są niezbędne do poprawnej kompilacji C/C++ (którą XGBoost czasami wymaga)
+      # 3. Instalacja kluczowych zależności systemowych
       - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
-      # 4. Instalacja zależności Python (KRYTYCZNY KROK)
-      - name: Install Python Dependencies (Forced Reinstall)
-        # Instalujemy w trybie upgrade i bez cache'u dla stabilności.
-        # Wymuszamy instalację z requirements.
-        run: pip install -r requirements.txt --upgrade --no-cache-dir
-        
-      # 5. Pobranie danych NLTK (dla sentymentu VADER)
-      - name: Download NLTK data
-        run: python -c "import nltk; nltk.download('vader_lexicon')"
-        
-      # 6. DIAGNOSTYKA: Potwierdzenie instalacji (jeśli ten krok się uda, to problem zniknął)
-      - name: Verify XGBoost Installation
-        run: python -c "import xgboost; print('XGBoost is installed successfully.')"
-        
-      # 7. Uruchomienie głównego skryptu symulacji
+      # 4. 🚀 KRYTYCZNY KROK: Uruchomienie VENV i Instalacja Zależności
+      - name: Setup VENV and Install Dependencies
+        # Tworzymy i aktywujemy VENV
+        run: |
+          python -m venv venv_xgboost
+          source venv_xgboost/bin/activate
+          # Instalujemy wszystko w czystym VENV
+          pip install -r requirements.txt --upgrade --no-cache-dir
+          pip install xgboost # Wymuszamy instalację XGBoost w nowym VENV
+          python -c "import nltk; nltk.download('vader_lexicon')"
+          
+      # 5. Uruchomienie głównego skryptu symulacji W AKTYWOWANYM ŚRODOWISKU
       - name: Run Multi-Simulations and Aggregate
-        run: python run_multiple_simulations_crypto.py
+        # Wywołujemy skrypt Pythona przez środowisko VENV, aby upewnić się, że widzi zainstalowane pakiety
+        run: |
+          source venv_xgboost/bin/activate # Ponowna aktywacja (dla bezpieczeństwa)
+          python run_multiple_simulations_crypto.py
+          
+      # 6. DIAGNOSTYKA: Potwierdzenie instalacji
+      - name: Final Verification
+        run: |
+          source venv_xgboost/bin/activate
+          python -c "import xgboost; print('XGBoost is installed and found in VENV.')"
