@@ -1,45 +1,28 @@
-# Plik: .github/workflows/run_cron.yml
 name: 'Cykl Symulacji AI (Cron)'
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *' 
+    - cron: '0 */6 * * *'
 
 jobs:
   run-simulations:
     runs-on: ubuntu-latest
+
     steps:
-      # 1. Checkout kodu
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0 
 
-      # 2. Setup Python 3.10
-      - name: Set up Python
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          
-      # 3. Instalacja kluczowych zależności systemowych
+
       - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
-      # 4. Instalacja zależności Python
       - name: Install Python Dependencies
-        run: pip install -r requirements.txt --upgrade --no-cache-dir --user
+        run: pip install -r requirements.txt --upgrade --no-cache-dir
 
-      # 5. Konfiguracja i Zapisanie Ścieżki Pythona
-      - name: Export Python Path
-        id: export_path
-        run: |
-          # Zapisujemy pełną ścieżkę do interpretera Pythona w zmiennej środowiskowej
-          echo "PYTHON_BIN=$(which python)" >> $GITHUB_ENV
-          echo "Ścieżka Pythona: $PYTHON_BIN"
-          
-      # 6. Uruchomienie Głównego Skryptu Symulacji (Użycie Pełnej Ścieżki)
       - name: Run Multi-Simulations and Aggregate
-        # Używamy zmiennej PYTHON_BIN do jawnego wywołania interpretera
-        run: ${{ env.PYTHON_BIN }} run_multiple_simulations_crypto.py
+        run: python run_multiple_simulations_crypto.py
