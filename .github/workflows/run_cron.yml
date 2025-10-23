@@ -27,26 +27,36 @@ jobs:
       - name: Install System Dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
-      # 4. 🚀 KRYTYCZNY KROK: Instalacja Python (do katalogu użytkownika)
+      # 4. Instalacja zależności Python (do katalogu użytkownika)
       - name: Install Python Dependencies (User Site)
-        # Instalujemy do katalogu lokalnego użytkownika i dodajemy do PYTHONPATH
+        # Używamy --user, co powoduje instalację w lokalnym katalogu użytkownika
         run: pip install -r requirements.txt --upgrade --no-cache-dir --user
         
-      # 5. Ustawienie Zmiennej Środowiskowej PYTHONPATH
-      - name: Set PYTHONPATH for XGBoost Visibility
+      # 5. 🚀 KRYTYCZNY KROK: Eksport Ścieżki PYTHONPATH
+      # Musimy jawnie ustawić zmienną PYTHONPATH, aby Python znalazł pakiety użytkownika
+      - name: Configure PYTHONPATH
+        id: set_path
         run: |
-          # Obliczanie ścieżki instalacji pakietów lokalnych
-          USER_SITE=$(python -m site --user-site)
-          echo "PYTHONPATH=$USER_SITE" >> $GITHUB_ENV
+          # Zlokalizowanie ścieżki site-packages dla użytkownika (np. ~/.local/lib/python3.10/site-packages)
+          USER_SITE_PACKAGES=$(python -m site --user-site)
+          
+          # Ustawienie zmiennej środowiskowej GITHUB_ENV
+          echo "PYTHONPATH=$USER_SITE_PACKAGES" >> $GITHUB_ENV
+          echo "Ścieżka PYTHONPATH ustawiona na: $USER_SITE_PACKAGES"
 
       # 6. Pobranie danych NLTK (dla sentymentu VADER)
       - name: Download NLTK data
+        # Teraz Python powinien znaleźć NLTK dzięki nowej ścieżce
         run: python -c "import nltk; nltk.download('vader_lexicon')"
         
-      # 7. DIAGNOSTYKA: Potwierdzenie instalacji
-      - name: Verify XGBoost Installation
-        run: python -c "import xgboost; print('XGBoost is installed and visible.')"
-        
-      # 8. Uruchomienie głównego skryptu symulacji
-      - name: Run Multi-Simulations and Aggregate
-        run: python run_multiple_simulations_crypto.py
+      # 7. DIAGNOSTYKA I Uruchomienie Głównego Skryptu
+      - name: Verify and Run Script
+        # Używamy jednego bloku run, aby zagwarantować użycie ustawionej PYTHONPATH
+        run: |
+          echo "Weryfikacja: PYTHONPATH jest: $PYTHONPATH"
+          
+          # Test: Jeśli ten import się uda, problem zniknął
+          python -c "import xgboost; print('XGBoost jest widoczny.')"
+          
+          # Uruchomienie skryptu
+          python run_multiple_simulations_crypto.py
