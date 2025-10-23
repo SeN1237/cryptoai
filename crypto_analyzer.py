@@ -5,11 +5,13 @@ from typing import List, Dict, Any, Union
 from datetime import timedelta # Używamy do obliczenia daty prognozy
 import nltk
 
-# Automatyczne pobranie leksykonu VADER, jeśli go brakuje
 try:
     nltk.data.find('sentiment/vader_lexicon.zip')
 except LookupError:
     nltk.download('vader_lexicon')
+
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+SID = SentimentIntensityAnalyzer()
 
 
 # Import dla Scikit-learn
