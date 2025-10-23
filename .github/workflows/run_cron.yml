@@ -23,16 +23,20 @@ jobs:
         with:
           python-version: '3.10'
           
-      # 3. Instalacja zależności (BEZ CACHE'U - Wymuszenie instalacji)
-      # Usuwamy sekcję cache, by uniknąć problemów z instalacją xgboost/pandas
-      - name: Install dependencies
-        # Używamy --no-cache-dir, by uniknąć błędów środowiskowych
-        run: pip install -r requirements.txt --no-cache-dir
+      # 3. Instalacja zależności (Zmiana komendy)
+      - name: Install dependencies (forcing upgrade)
+        # Instalujemy wszystkie zależności, wymuszając brak cache'u
+        # Wymagane dla poprawności środowiska
+        run: pip install -r requirements.txt --upgrade --no-cache-dir
         
-      # 4. Pobranie danych NLTK (dla sentymentu VADER)
+      # 4. DODATKOWY KROK DIAGNOSTYCZNY
+      - name: Verify XGBoost Installation
+        run: python -c "import xgboost; print('XGBoost version:', xgboost.__version__)"
+        
+      # 5. Pobranie danych NLTK (dla sentymentu VADER)
       - name: Download NLTK data
         run: python -c "import nltk; nltk.download('vader_lexicon')"
 
-      # 5. Uruchomienie głównego skryptu symulacji
+      # 6. Uruchomienie głównego skryptu symulacji
       - name: Run Multi-Simulations and Aggregate
         run: python run_multiple_simulations_crypto.py
