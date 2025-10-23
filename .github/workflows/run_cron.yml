@@ -14,7 +14,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} 
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0 
 
       # 2. Setup Python 3.10
@@ -23,13 +23,13 @@ jobs:
         with:
           python-version: '3.10'
           
-      # 3. Instalacja zależności (OBOWIĄZKOWO PRZED SKRYPTEM!)
-      # Upewniamy się, że wszystkie pakiety są zainstalowane
+      # 3. Instalacja zależności (BEZ CACHE'U - Wymuszenie instalacji)
+      # Usuwamy sekcję cache, by uniknąć problemów z instalacją xgboost/pandas
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        # Używamy --no-cache-dir, by uniknąć błędów środowiskowych
+        run: pip install -r requirements.txt --no-cache-dir
         
       # 4. Pobranie danych NLTK (dla sentymentu VADER)
-      # Jest to krytyczny krok dla Twojej analizy sentymentu
       - name: Download NLTK data
         run: python -c "import nltk; nltk.download('vader_lexicon')"
 
