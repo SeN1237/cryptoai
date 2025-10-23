@@ -24,32 +24,23 @@ jobs:
           python-version: '3.10'
           
       # 3. Instalacja kluczowych zależności systemowych
-      - name: Install System Dependencies
+      - name: Install System Dependencies (Crucial for XGBoost)
         run: sudo apt-get update && sudo apt-get install -y build-essential
+        
+      # 4. Instalacja XGBOOST OSOBNO (KRYTYCZNE)
+      - name: Install XGBoost Separately
+        # Wyodrębniamy XGBoost, aby mieć pewność, że to on jest problemem
+        run: pip install xgboost
+        
+      # 5. Instalacja reszty zależności
+      - name: Install Remaining Dependencies
+        run: pip install -r requirements.txt --upgrade --no-cache-dir
 
-      # 4. 🚀 KROK DIAGNOSTYCZNY: Tworzenie VENV i Sprawdzenie Struktury
-      - name: CREATE VENV AND VERIFY
-        id: venv_test
-        run: |
-          # Tworzymy VENV
-          python -m venv venv_test_xgboost
-          echo "### STWORZONO VENV ###"
-          ls -F venv_test_xgboost/bin/
-          
-          # Ustawiamy PATH, co jest niezbędne do poprawnej aktywacji
-          echo "PATH=$PWD/venv_test_xgboost/bin:$PATH" >> $GITHUB_ENV
-          
-      # 5. Instalacja i Test (Bez użycia "source activate")
-      - name: INSTALL XGBoost and NLTK into VENV
-        # Używamy PATH ustawionego w poprzednim kroku, aby wywołać pip i python
-        run: |
-          pip install -r requirements.txt --upgrade --no-cache-dir
-          
-          echo "### WERYFIKACJA INSTALACJI ###"
-          python -c "import xgboost; print('XGBoost jest widoczny w Python PATH!')"
-          python -c "import nltk; nltk.download('vader_lexicon')"
-
-      # 6. Uruchomienie głównego skryptu symulacji
+      # 6. Pobranie danych NLTK (dla sentymentu VADER)
+      - name: Download NLTK data
+        run: python -c "import nltk; nltk.download('vader_lexicon')"
+        
+      # 7. Uruchomienie głównego skryptu symulacji
       - name: Run Multi-Simulations and Aggregate
-        # Teraz uruchamiamy skrypt, który powinien widzieć pakiety
+        # Jeśli ten krok zawiedzie, to problem leży wewnątrz train_model_crypto.py
         run: python run_multiple_simulations_crypto.py
