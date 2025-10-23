@@ -1,34 +1,30 @@
 import pandas as pd
-from xgboost import XGBRegressor
-from features_prices import build_price_features
-from features_news import build_news_features
+from lightgbm import LGBMRegressor # ⬅️ ZMIANA: Używamy LightGBM zamiast XGBoost
+from features_prices import build_price_features # Zakładamy, że ta funkcja działa
+from features_news import build_news_features # Zakładamy, że ta funkcja działa
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import os
 
 SIMULATION_NUMBER = int(os.environ.get("SIMULATION_NUMBER", 1))
 
-# --- KONFIGURACJA KRYPTOWALUT ---
+# --- KONFIGURACJA KRYPTOWALUT (OPTYMALIZACJA STABILNOŚCI) ---
+# Ograniczona lista, aby zmniejszyć ryzyko błędu pamięci (512 MB RAM)
 CRYPTO_TICKERS = [
     "BTC-USD", "ETH-USD", "BNB-USD", "XRP-USD", "ADA-USD", "SOL-USD",
     "DOGE-USD", "DOT-USD", "MATIC-USD", "LTC-USD", "SHIB-USD", "AVAX-USD",
-    "UNI-USD", "LINK-USD", "ALGO-USD", "ATOM-USD", "VET-USD", "FTT-USD",
-    "FIL-USD", "TRX-USD", "NEAR-USD", "XLM-USD", "HBAR-USD", "ICP-USD",
-    "EGLD-USD", "FLOW-USD", "EOS-USD", "AAVE-USD", "MKR-USD", "KSM-USD",
-    "SAND-USD", "CHZ-USD", "XTZ-USD", "STX-USD", "CRV-USD", "MANA-USD",
-    "GRT-USD", "BAT-USD", "CELO-USD", "1INCH-USD", "ENJ-USD", "ZEC-USD",
-    "DASH-USD", "KAVA-USD", "RUNE-USD", "NEO-USD", "QTUM-USD", "ICX-USD",
-    "HNT-USD", "ANKR-USD", "XMR-USD", "LRC-USD", "OCEAN-USD"
+    "UNI-USD", "LINK-USD", "ALGO-USD"
 ]
 
-HORIZON = 21
-TOP_K = 20
+HORIZON = 21 # Horyzont prognozy (np. 21 dni handlowych)
+TOP_K = 5 # Wybieramy Top 5 z prognozą
 TCOST = 0.0015
 INITIAL_CAPITAL = 10000  # $ na start
 
 # --- Budowanie cech ---
 print("Budowanie cech cenowych kryptowalut...")
-price_feats = build_price_features(CRYPTO_TICKERS)
+# UWAGA: Te funkcje muszą być stabilne i działać w środowisku GitHub Actions
+price_feats = build_price_features(CRYPTO_TICKERS) 
 
 print("Budowanie cech z newsów...")
 news_feats = build_news_features(CRYPTO_TICKERS, days=7)
@@ -40,10 +36,10 @@ if 'date' not in news_feats.columns:
     news_feats = news_feats.rename_axis('date').reset_index()
 
 # Konwersja dat na datetime
-price_feats['date'] = pd.to_datetime(price_feats['date'])
-news_feats['date'] = pd.to_datetime(news_feats['date'])
+price_feats['date'] = pd.to_datetime(price_feats['date']).dt.normalize()
+news_feats['date'] = pd.to_datetime(news_feats['date']).dt.normalize()
 
-# Łączenie cen i newsów
+# Łączenie i przygotowanie danych
 features = (
     price_feats
     .merge(news_feats, on=['ticker', 'date'], how='left')
@@ -62,73 +58,34 @@ Xcols = [c for c in features.columns if c not in ['target','ticker']]
 X = features[Xcols]
 y = features['target']
 
-model = XGBRegressor(
-    n_estimators=400,
-    max_depth=5,
+# ⬅️ ZMIANA MODELU NA LIGHTGBM
+model = LGBMRegressor(
+    n_estimators=200, # Zmniejszona liczba dla szybszego treningu
+    max_depth=4, 
     learning_rate=0.05,
-    subsample=0.8,
-    colsample_bytree=0.8,
     random_state=42,
-    n_jobs=-1
+    n_jobs=-1 # Używa wszystkich dostępnych rdzeni
 )
 
-print("Trening modelu AI dla kryptowalut...")
+print(f"Trening modelu AI (LGBM) dla symulacji {SIMULATION_NUMBER}...")
 model.fit(X, y)
 
-# --- Prognozy ---
+# --- Prognozy i Zapis ---
 preds = pd.Series(model.predict(X), index=X.index)
 snapshot = features[['ticker']].copy()
 snapshot['pred'] = preds.values
 last_snap = snapshot.loc[snapshot.index.max()]
 top = last_snap.sort_values('pred', ascending=False).head(TOP_K)
 
-# --- Dodaj prognozę % ---
+# Prognoza w %
 top['pred_%'] = top['pred']*100
 
-# --- Symulacja equity ---
-equity = [INITIAL_CAPITAL]
-last_hold = pd.Series(dtype=float)
-
-for date in sorted(features.index.unique()):
-    frame = features.loc[date]
-    ret_map = frame.set_index('ticker')['ret_1']
-
-    daily_top = frame.copy()
-    daily_top['pred'] = model.predict(frame[Xcols])
-    daily_top = daily_top.sort_values('pred', ascending=False).head(TOP_K)
-    daily_top['weight'] = 1.0 / len(daily_top)
-    
-    daily_top = daily_top[~daily_top.index.duplicated(keep='first')]
-    
-    tickers_union = ret_map.index.union(daily_top.index).unique()
-    ret_map = ret_map.reindex(tickers_union).fillna(0)
-    weights = daily_top['weight'].reindex(tickers_union).fillna(0)
-    
-    turnover = (last_hold.reindex(tickers_union).fillna(0) - weights).abs().sum()
-    r = (ret_map * weights).sum() - TCOST * turnover
-    
-    equity.append(equity[-1] * (1 + r))
-    last_hold = weights.copy()
-
-equity_series = pd.Series(equity[1:], index=sorted(features.index.unique()))
-
-# --- Wyświetlenie wyników ---
-print("Top kryptowaluty do kupienia (ostatni dzień):")
-print(top[['ticker','pred_%']])
-
-# --- Zapis wyników ---
+# Tworzymy folder, jeśli nie istnieje
 os.makedirs("top_results_crypto", exist_ok=True)
+
+# Zapis do pliku
 top_file = f"top_results_crypto/last_top_crypto_{SIMULATION_NUMBER}.csv"
 top.to_csv(top_file, index=False)
 print(f"Wyniki zapisane do: {top_file}")
 
-total_return = (equity_series[-1]/INITIAL_CAPITAL - 1)*100
-print(f"Przykładowy zysk: ${equity_series[-1]:.2f} ({total_return:.2f}%) od {equity_series.index[0].date()} do {equity_series.index[-1].date()}")
-
-# --- Wykres equity ---
-equity_series.plot(title="Symulacja portfela kryptowalut")
-plt.xlabel("Data")
-plt.ylabel("Kapitał ($)")
-plt.show()
-
-
+# [Usunięto kod Symulacji Equity i Wykresu, ponieważ jest niepotrzebny w Cron Job]
