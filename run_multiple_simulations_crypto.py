@@ -4,7 +4,7 @@ import subprocess
 import time
 from datetime import datetime
 
-# Stała liczba symulacji
+# Stała liczba symulacji (zoptymalizowana dla darmowego tieru)
 NUM_SIMULATIONS = 5 
 RESULTS_DIR = "top_results_crypto"
 AVG_FILE = f"{RESULTS_DIR}/average_top_crypto.csv"
@@ -18,7 +18,7 @@ def git_push_results():
     subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"], check=True)
     subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"], check=True)
     
-    # 2. DODATKOWY KROK: Musimy pobrać najnowszy stan repozytorium, aby uniknąć błędów 'non-fast-forward'
+    # 2. Musimy pobrać najnowszy stan repozytorium (unikamy błędów non-fast-forward)
     try:
         subprocess.run(["git", "pull", "--rebase"], check=True)
         print("✅ Pomyślnie pobrano najnowsze zmiany.")
@@ -44,7 +44,6 @@ def git_push_results():
     # 5. Commit
     try:
         commit_message = f"🤖 [CRON] Nowe wyniki z symulacji ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
-        # Commit standardowy
         subprocess.run(["git", "commit", "-m", commit_message], check=True) 
         print(f"✅ Commit wykonany.")
     except subprocess.CalledProcessError as e:
@@ -57,7 +56,7 @@ def git_push_results():
         print("✅ Pomyślnie zapisano wyniki na GitHub. SYSTEM JEST AKTYWNY.")
     except Exception as e:
         print(f"❌ BŁĄD GIT PUSH: {e}")
-        print("Prawdopodobnie błąd autoryzacji. MUSISZ SPRAWDZIĆ USTAWIENIA GITHUB (Read and write permissions).")
+        print("Błąd autoryzacji. MUSISZ SPRAWDZIĆ USTAWIENIA GITHUB (Read and write permissions).")
 
 
 def run_and_aggregate_simulations(num_simulations=NUM_SIMULATIONS):
@@ -74,11 +73,15 @@ def run_and_aggregate_simulations(num_simulations=NUM_SIMULATIONS):
         env["SIMULATION_NUMBER"] = str(sim)
         
         try:
-             # Uruchamiamy train_model_crypto.py
+             # 🚨 KRYTYCZNA ZMIANA: Użycie 'python' jako pierwszego argumentu.
+             # Ta konstrukcja jest najbardziej niezawodna w środowiskach CI/CD.
              subprocess.run(["python", "train_model_crypto.py"], check=True, env=env)
         except subprocess.CalledProcessError as e:
-             print(f"BŁĄD: train_model_crypto.py zakończył się niepowodzeniem. {e}")
-             continue
+             # Zatrzymujemy działanie całego Workflow, jeśli trenowanie zawiedzie.
+             print(f"BŁĄD: train_model_crypto.py zakończył się niepowodzeniem w symulacji {sim}. Szczegóły: {e}")
+             print("Prawdopodobnie błąd pobierania danych z zewnętrznego API. Przerywam.")
+             return # Przerywamy działanie, jeśli model nie jest trenowany
+
         
         top_file = f"{RESULTS_DIR}/last_top_crypto_{sim}.csv"
         try:
