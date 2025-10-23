@@ -1,4 +1,3 @@
-xgboost
 fastapi
 uvicorn
 pandas
@@ -8,5 +7,6 @@ pydantic
 numpy
 plotly
 nltk
+xgboost
 streamlit
 matplotlib
